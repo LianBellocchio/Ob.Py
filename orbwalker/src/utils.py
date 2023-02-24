@@ -1,89 +1,42 @@
-import json
 import math
+import json
+import os
 
 
-def load_json_file(file_path):
-    """
-    Carga un archivo json y devuelve su contenido en forma de diccionario.
-
-    Args:
-        file_path (str): la ruta del archivo json.
-
-    Returns:
-        dict: el contenido del archivo json en forma de diccionario.
-    """
-    with open(file_path, "r") as file:
-        data = json.load(file)
-    return data
+def get_game_data_path():
+    script_path = os.path.dirname(os.path.abspath(__file__))
+    data_path = os.path.join(script_path, '..', 'data')
+    game_data_path = os.path.join(data_path, 'game_data.json')
+    return game_data_path
 
 
-def distance_between_points(x1, y1, x2, y2):
-    """
-    Calcula la distancia euclidiana entre dos puntos.
-
-    Args:
-        x1 (float): la coordenada x del primer punto.
-        y1 (float): la coordenada y del primer punto.
-        x2 (float): la coordenada x del segundo punto.
-        y2 (float): la coordenada y del segundo punto.
-
-    Returns:
-        float: la distancia euclidiana entre los dos puntos.
-    """
-    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+def load_game_data():
+    game_data_path = get_game_data_path()
+    with open(game_data_path, 'r', encoding='utf-8') as f:
+        game_data = json.load(f)
+    return game_data
 
 
-def get_nearest_unit(units, x, y):
-    """
-    Obtiene la unidad más cercana a las coordenadas x e y.
-
-    Args:
-        units (list): una lista de unidades.
-        x (float): la coordenada x.
-        y (float): la coordenada y.
-
-    Returns:
-        dict: la unidad más cercana a las coordenadas dadas.
-    """
-    nearest_unit = None
-    nearest_distance = math.inf
-    for unit in units:
-        distance = distance_between_points(unit["x"], unit["y"], x, y)
-        if distance < nearest_distance:
-            nearest_unit = unit
-            nearest_distance = distance
-    return nearest_unit
+def save_game_data(game_data):
+    game_data_path = get_game_data_path()
+    with open(game_data_path, 'w', encoding='utf-8') as f:
+        json.dump(game_data, f, ensure_ascii=False, indent=4)
 
 
-def get_spell_info(spell_id, spells):
-    """
-    Obtiene la información de un hechizo.
-
-    Args:
-        spell_id (int): el ID del hechizo.
-        spells (dict): un diccionario que contiene la información de los hechizos.
-
-    Returns:
-        dict: la información del hechizo.
-    """
-    for spell in spells:
-        if spell["id"] == spell_id:
-            return spell
-    return None
+def euclidean_distance(point1, point2):
+    distance = math.sqrt(sum([(point1[i] - point2[i]) ** 2 for i in range(len(point1))]))
+    return distance
 
 
-def get_item_info(item_id, items):
-    """
-    Obtiene la información de un objeto.
+def closest_point(point, points_list):
+    closest = min(points_list, key=lambda x: euclidean_distance(point, x))
+    return closest
 
-    Args:
-        item_id (int): el ID del objeto.
-        items (dict): un diccionario que contiene la información de los objetos.
 
-    Returns:
-        dict: la información del objeto.
-    """
-    for item in items:
-        if item["id"] == item_id:
-            return item
-    return None
+def mana_percent(player):
+    return player.mana / player.max_mana if player.max_mana != 0 else 0
+
+
+def health_percent(player):
+    return player.health / player.max_health if player.max_health != 0 else 0
+

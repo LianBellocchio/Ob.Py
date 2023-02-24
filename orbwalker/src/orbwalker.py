@@ -1,109 +1,59 @@
+import time
+import random
 import math
-from typing import Optional
-from itertools import groupby
-
-from utils import dist, is_in_turret_range, is_in_fountain_range, is_valid_target
+import pydirectinput
+from champion import Champion
+from player import Player
+from utils import is_in_range, get_closest_enemy, distance_between, normalize_vector, predict_position, get_line_circle_intersection_points
 
 class Orbwalker:
-def init(self, player):
-self.player = player
-self.last_attack_tick = 0
-self.last_move_tick = 0
-self.attack_windup = 0.05
-self.attack_animation = 0.35
-self.move_delay = 0.05
-self.target: Optional['GameObject'] = None
-def get_target(self):
-    if self.target and not is_valid_target(self.target):
-        self.target = None
+    def __init__(self, champion: Champion, player: Player):
+        self.champion = champion
+        self.player = player
 
-    if not self.target:
-        # Prioritize enemy champions
-        enemies = [unit for unit in self.player.game.units if unit.is_enemy_to(self.player) and unit.is_alive and self.player.distance_to(unit) <= self.player.vision_range]
-        if enemies:
-            self.target = max(enemies, key=lambda u: u.distance_to(self.player))
+    def kite(self, target):
+        start_time = time.time()
+        attack_started = False
+        last_pos = self.champion.get_position()
 
-    return self.target
-
-def attack_if_possible(self):
-    target = self.get_target()
-    if not target:
-        return
-
-    if self.player.game.tick - self.last_attack_tick >= self.player.attack_delay * 1000:
-        if self.player.distance_to(target) <= self.player.attack_range and not is_in_turret_range(target) and not is_in_fountain_range(target):
-            self.player.issue_attack(target)
-            self.last_attack_tick = self.player.game.tick
-
-def move_to_target(self):
-    target = self.get_target()
-    if not target:
-        return
-
-    if self.player.game.tick - self.last_move_tick >= self.move_delay * 1000:
-        if self.player.distance_to(target) > self.player.attack_range or is_in_turret_range(target) or is_in_fountain_range(target):
-            self.player.issue_move(target.position)
-            self.last_move_tick = self.player.game.tick
-
-def kite(self):
-    target = self.get_target()
-    if not target:
-        return
-
-    # Calculate kite vector
-    player_pos = self.player.position
-    target_pos = target.position
-    distance_to_target = dist(player_pos, target_pos)
-    if distance_to_target < self.player.attack_range:
-        direction = (player_pos - target_pos).normalize()
-        angle = math.pi / 3  # 60 degrees
-        perpendicular = direction.rotate(angle) if self.player.is_melee else direction.rotate(-angle)
-        kiting_pos = target_pos + perpendicular.scale(250)
-
-        # Make sure kiting position is valid
-        if not is_in_turret_range(kiting_pos) and not is_in_fountain_range(kiting_pos):
-            self.player.issue_move(kiting_pos)
-
-def orbwalk(self):
-    self.attack_if_possible()
-    self.move_to_target()
-    self.kite()
-
-    # Implement prediction of target position
-    target = self.get_target()
-    if not target:
-        return
-
-    if target.is_moving and not is_in_turret_range(target) and not is_in_fountain_range(target):
-        prediction = target.position + target.velocity.scale(target.distance_to(self.player) / self.player.attack_range)
-        if not is_in_turret_range(prediction) and not is_in_fountain_range(prediction):
-            self.player.issue_attack(prediction)
-
-    # Implement collision detection
-    target = self.get_target()
-    if not target:
-        return
-
-    player_pos = self.player.position
-    target_pos = target.position
-    distance_to_target = dist(player_pos, target_pos)
-    if distance_to_target < self.player.attack_range:
-        direction = (player_pos - target_pos).normalize()
-        angle = math.pi / 3  # 60 degrees
-        perpendicular = direction.rotate(angle) if self.player.is_melee else direction.rotate(-angle)
-        kiting_pos = target_pos + perpendicular.scale(250)
-
-        # Check for collision
-        for game_object in self.player.game.game_objects:
-            if game_object == self.player:
-                continue
-            if game_object.is_wall or game_object.is_turret:
-                continue
-            if dist(kiting_pos, game_object.position) < game_object.radius + self.player.radius:
-                # Collision detected, move in opposite direction
-                opposite = direction.rotate(math.pi)
-                kiting_pos = target_pos + opposite.scale(250)
+        while self.player.is_alive() and target.is_alive():
+            current_time = time.time()
+            if current_time - start_time > 5:
                 break
 
-        if not is_in_turret_range(kiting_pos) and not is_in_fountain_range(kiting_pos):
-            self.player.issue_move(kiting_pos)
+            target_distance = distance_between(self.champion.get_position(), target.get_position())
+
+            if is_in_range(target_distance, self.champion.get_autoattack_range()):
+                if not attack_started:
+                    pydirectinput.mouseDown()
+                    attack_started = True
+                elif current_time - start_time > 1:
+                    pydirectinput.mouseUp()
+                    attack_started = False
+            else:
+                if attack_started:
+                    pydirectinput.mouseUp()
+                    attack_started = False
+
+                if target_distance < self.champion.get_autoattack_range() * 1.5:
+                    move_pos = get_closest_enemy(self.player, [target])
+                    if move_pos is not None:
+                        pydirectinput.moveTo(*move_pos)
+                else:
+                    predicted_pos = predict_position(self.champion.get_position(), target.get_position(), target.get_last_move_speed())
+                    move_pos = get_line_circle_intersection_points(self.champion.get_position(), predicted_pos, self.champion.get_autoattack_range())[0]
+                    if move_pos is None:
+                        move_pos = predicted_pos
+
+                    # Calculate a random point around the predicted position to move to
+                    # to avoid moving in a predictable way
+                    move_dir = normalize_vector((move_pos[0] - self.champion.get_position()[0], move_pos[1] - self.champion.get_position()[1]))
+                    move_angle = math.atan2(move_dir[1], move_dir[0])
+                    move_radius = random.uniform(50, 150)
+                    move_offset = (move_radius * math.cos(move_angle), move_radius * math.sin(move_angle))
+                    move_pos = (move_pos[0] + move_offset[0], move_pos[1] + move_offset[1])
+
+                    pydirectinput.moveTo(*move_pos)
+                    last_pos = move_pos
+
+        pydirectinput.mouseUp()
