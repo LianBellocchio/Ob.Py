@@ -1,57 +1,51 @@
 import requests
 import json
+import os
 
-# URL de inicio de sesión de Riot Games
-LOGIN_URL = 'https://auth.riotgames.com/api/v1/authorization'
+API_KEY = "RGAPI-e244ba97-b386-4309-9641-6b0bd07d52c6"
 
-# URL de generación de clave API de Riot Games
-API_KEY_URL = 'https://developer.riotgames.com/api-keys'
+BASE_URL = "https://na1.api.riotgames.com/lol/"
 
-# Datos de inicio de sesión
-USERNAME = 'ahnillitor'
-PASSWORD = '270404Gnb'
+def get_champions():
+    url = f"{BASE_URL}champions"
+    response = requests.get(url, params={"api_key": API_KEY})
+    champions = json.loads(response.text)["data"]
+    return champions
 
-# Leer la clave API actual del archivo fetch_game_data.py
-with open('fetch_game_data.py', 'r') as f:
-    contents = f.read()
-    api_key = contents.split('"')[1]
+def get_items():
+    url = f"{BASE_URL}items"
+    response = requests.get(url, params={"api_key": API_KEY})
+    items = json.loads(response.text)["data"]
+    return items
 
-# Verificar si la clave API actual todavía es válida
-headers = {'X-Riot-Token': api_key}
-response = requests.get('https://na1.api.riotgames.com/lol/platform/v3/champion-rotations', headers=headers)
-if response.status_code == 200:
-    print('La clave API actual todavía es válida')
-else:
-    print('La clave API actual ha expirado')
+def get_spells():
+    url = f"{BASE_URL}summoner-spells"
+    response = requests.get(url, params={"api_key": API_KEY})
+    spells = json.loads(response.text)["data"]
+    return spells
 
-    # Realizar la solicitud de inicio de sesión
-    response = requests.post(LOGIN_URL, json={
-        'client_id': 'riot-developer-portal',
-        'nonce': '1',
-        'redirect_uri': 'https://developer.riotgames.com/redirect-uri',
-        'response_type': 'token id_token',
-        'scope': 'openid email profile',
-        'state': '1'
-    })
+def get_game_data():
+    champions = get_champions()
+    items = get_items()
+    spells = get_spells()
 
-    # Obtener el URI de redireccionamiento
-    redirect_uri = response.history[0].headers['location']
+    game_data = {
+        "champions": champions,
+        "items": items,
+        "spells": spells
+    }
 
-    # Realizar la solicitud de inicio de sesión en el formulario
-    response = requests.post(redirect_uri, data={
-        'login': 'ahnillitor',
-        'password': '270404Gnb'
-    }, allow_redirects=False)
+    return game_data
 
-    # Obtener el URI de redireccionamiento final
-    redirect_uri = response.headers['location']
+if __name__ == "__main__":
+    game_data = get_game_data()
 
-    # Realizar la solicitud de autorización de clave API
-    response = requests.post(API_KEY_URL, headers={'Referer': redirect_uri})
-    api_key_data = json.loads(response.text)
+    # Create data directory if it doesn't exist
+    if not os.path.exists("data"):
+        os.makedirs("data")
 
-    # Leer la nueva clave API y escribirla en el archivo fetch_game_data.py
-    new_api_key = api_key_data['key']
-    with open('fetch_game_data.py', 'w') as f:
-        f.write(contents.replace(api_key, new_api_key))
-        print('Se ha generado una nueva clave API y se ha escrito en el archivo fetch_game_data.py')
+    # Save game data to file
+    with open("data/game_data.json", "w") as outfile:
+        json.dump(game_data, outfile)
+
+    print("Game data fetched and saved successfully.")
