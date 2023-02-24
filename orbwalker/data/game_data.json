@@ -1,0 +1,57 @@
+import json
+from pathlib import Path
+
+
+def load_json_data(file_path):
+    """Load JSON data from a file."""
+    with open(file_path, "r") as f:
+        data = json.load(f)
+    return data
+
+
+def save_json_data(data, file_path):
+    """Save data to a file as JSON."""
+    with open(file_path, "w") as f:
+        json.dump(data, f, indent=4)
+
+
+def get_game_data():
+    """Generate game data dictionary from individual data files."""
+    game_data = {}
+    champions = load_json_data(Path("data", "champions.json"))
+    items = load_json_data(Path("data", "items.json"))
+    spells = load_json_data(Path("data", "spells.json"))
+    runes = load_json_data(Path("data", "runes.json"))
+
+    # Add champions
+    game_data["champions"] = champions
+
+    # Add items
+    items_dict = {}
+    for item in items:
+        items_dict[item["id"]] = item
+    game_data["items"] = items_dict
+
+    # Add spells
+    spells_dict = {}
+    for spell in spells:
+        spells_dict[spell["id"]] = spell
+    game_data["spells"] = spells_dict
+
+    # Add runes
+    runes_dict = {}
+    for rune in runes:
+        runes_dict[rune["id"]] = rune
+    game_data["runes"] = runes_dict
+
+    return game_data
+
+
+def main():
+    """Generate game data file from individual data files."""
+    game_data = get_game_data()
+    save_json_data(game_data, Path("data", "game_data.json"))
+
+
+if __name__ == "__main__":
+    main()
