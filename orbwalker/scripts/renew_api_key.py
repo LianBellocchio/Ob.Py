@@ -55,3 +55,7 @@ else:
     with open('fetch_game_data.py', 'w') as f:
         f.write(contents.replace(api_key, new_api_key))
         print('Se ha generado una nueva clave API y se ha escrito en el archivo fetch_game_data.py')
+
+        # Actualizar la variable global API_KEY en fetch_game_data.py
+        global API_KEY
+        API_KEY = new_api_key

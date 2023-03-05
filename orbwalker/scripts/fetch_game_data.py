@@ -2,7 +2,7 @@ import requests
 import json
 import os
 
-API_KEY = "RGAPI-e244ba97-b386-4309-9641-6b0bd07d52c6"
+API_KEY = "RGAPI-1d987440-b6fc-49ae-81e3-fc9ecd73a070"
 
 BASE_URL = "https://na1.api.riotgames.com/lol/"
 
